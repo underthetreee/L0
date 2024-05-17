@@ -4,6 +4,10 @@
 run:
 	go run cmd/app/main.go
 
+.PHONY: publisher 
+publisher:
+	go run cmd/publisher/main.go
+
 .PHONY: compose-up
 compose-up:
 	docker-compose up -d

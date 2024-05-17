@@ -9,3 +9,10 @@ services:
       ports:
         - "5432:5432"
       restart: unless-stopped
+
+    nats:
+      image: nats-streaming:latest
+      container_name: nats 
+      ports:
+        - "4222:4222"
+      restart: unless-stopped

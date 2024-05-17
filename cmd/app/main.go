@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/underthetreee/L0/config"
+	"github.com/underthetreee/L0/pkg/nats"
 )
 
 func main() {
@@ -29,5 +30,12 @@ func run() error {
 	}
 	defer db.Close()
 
+	sub, err := nats.NewSubcriber(cfg.Nats.Cluster, cfg.Nats.Client)
+	if err != nil {
+		return err
+	}
+	if err := sub.Subscribe("order"); err != nil {
+		return err
+	}
 	return nil
 }
