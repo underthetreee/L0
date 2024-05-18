@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/underthetreee/L0/config"
+	"github.com/underthetreee/L0/internal/model"
 	"github.com/underthetreee/L0/pkg/nats"
 )
 
@@ -30,12 +32,26 @@ func run() error {
 	}
 	defer db.Close()
 
-	sub, err := nats.NewSubcriber(cfg.Nats.Cluster, cfg.Nats.Client)
+	sub, err := nats.NewSubcriber(cfg.Nats.Cluster, "orders-sub", cfg.Nats.URL)
 	if err != nil {
 		return err
 	}
-	if err := sub.Subscribe("order"); err != nil {
+	defer sub.Close()
+
+	msgCh, err := sub.Subscribe(ctx, "orders")
+	if err != nil {
 		return err
+	}
+
+	var order model.Order
+
+	for msg := range msgCh {
+		if err := json.Unmarshal(msg, &order); err != nil {
+			log.Println("invalid json:", err)
+			continue
+		}
+
+		fmt.Println(order)
 	}
 	return nil
 }

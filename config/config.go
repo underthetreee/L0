@@ -18,7 +18,7 @@ type (
 
 	Nats struct {
 		Cluster string `env-required:"true" env:"NATS_CLUSTER"`
-		Client  string `env-required:"true" env:"NATS_CLIENT"`
+		URL     string `env-required:"true" env:"NATS_URL"`
 	}
 )
 

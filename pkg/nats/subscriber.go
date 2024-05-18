@@ -1,33 +1,43 @@
 package nats
 
 import (
+	"context"
 	"fmt"
-	"log"
 
 	"github.com/nats-io/stan.go"
 )
 
 type NatsSubscriber struct {
-	sub stan.Conn
+	conn stan.Conn
 }
 
-func NewSubcriber(cluster string, client string) (NatsSubscriber, error) {
-	sub, err := stan.Connect(cluster, client)
+func NewSubcriber(clusterID string, clientID string, url string) (NatsSubscriber, error) {
+	conn, err := stan.Connect(clusterID, clientID, stan.NatsURL(url))
 	if err != nil {
 		return NatsSubscriber{}, fmt.Errorf("nats connect: %w", err)
 	}
 	return NatsSubscriber{
-		sub: sub,
+		conn: conn,
 	}, nil
 }
 
-func (s *NatsSubscriber) Subscribe(subject string) error {
-	sub, err := s.sub.Subscribe(subject, func(msg *stan.Msg) {
-		log.Printf("message: %s\n", string(msg.Data))
-	}, stan.DurableName("dur"))
-	if err != nil {
-		return fmt.Errorf("subscriber: %w", err)
+func (s *NatsSubscriber) Subscribe(ctx context.Context, subject string) (<-chan []byte, error) {
+	msgCh := make(chan []byte)
+
+	if _, err := s.conn.Subscribe(subject, func(m *stan.Msg) {
+		msgCh <- m.Data
+	}, stan.DurableName("dur"), stan.DeliverAllAvailable()); err != nil {
+		return nil, err
 	}
-	defer sub.Close()
-	return nil
+
+	go func() {
+		<-ctx.Done()
+		close(msgCh)
+	}()
+
+	return msgCh, nil
+}
+
+func (s *NatsSubscriber) Close() error {
+	return s.conn.Close()
 }
