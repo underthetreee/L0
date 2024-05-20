@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/underthetreee/L0/config"
 	"github.com/underthetreee/L0/internal/model"
+	"github.com/underthetreee/L0/internal/repository"
 	"github.com/underthetreee/L0/pkg/nats"
 )
 
@@ -38,20 +39,24 @@ func run() error {
 	}
 	defer sub.Close()
 
+	repo := repository.NewPostgresRepository(db)
+
 	msgCh, err := sub.Subscribe(ctx, "orders")
 	if err != nil {
 		return err
 	}
 
 	var order model.Order
-
 	for msg := range msgCh {
 		if err := json.Unmarshal(msg, &order); err != nil {
 			log.Println("invalid json:", err)
 			continue
 		}
 
-		fmt.Println(order)
+		log.Println("receiving order...")
+		if err := repo.Store(ctx, order); err != nil {
+			return err
+		}
 	}
 	return nil
 }
