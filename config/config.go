@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -24,6 +23,7 @@ type (
 
 func NewConfig() (Config, error) {
 	var cfg Config
+
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
 		return Config{}, fmt.Errorf("config: %w", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"github.com/underthetreee/L0/config"
 	"github.com/underthetreee/L0/internal/model"
 	"github.com/underthetreee/L0/internal/repository"
+	"github.com/underthetreee/L0/internal/service"
+	"github.com/underthetreee/L0/pkg/cache"
 	"github.com/underthetreee/L0/pkg/nats"
 )
 
@@ -33,13 +35,21 @@ func run() error {
 	}
 	defer db.Close()
 
+	repo := repository.NewPostgresRepository(db)
+	cch := cache.NewCache()
+
+	log.Println("caching db...")
+	if err := cch.LoadDB(ctx, repo); err != nil {
+		return err
+	}
+
+	svc := service.NewOrderService(repo, cch)
+
 	sub, err := nats.NewSubcriber(cfg.Nats.Cluster, "orders-sub", cfg.Nats.URL)
 	if err != nil {
 		return err
 	}
 	defer sub.Close()
-
-	repo := repository.NewPostgresRepository(db)
 
 	msgCh, err := sub.Subscribe(ctx, "orders")
 	if err != nil {
@@ -48,15 +58,16 @@ func run() error {
 
 	var order model.Order
 	for msg := range msgCh {
+		log.Println("receiving order...")
 		if err := json.Unmarshal(msg, &order); err != nil {
 			log.Println("invalid json:", err)
 			continue
 		}
 
-		log.Println("receiving order...")
-		if err := repo.Store(ctx, order); err != nil {
+		if err := svc.Store(ctx, order); err != nil {
 			return err
 		}
+
 	}
 	return nil
 }
