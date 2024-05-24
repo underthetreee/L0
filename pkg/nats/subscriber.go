@@ -8,34 +8,34 @@ import (
 )
 
 type NatsSubscriber struct {
-	conn stan.Conn
+	conn  stan.Conn
+	msgCh chan []byte
 }
 
-func NewSubcriber(clusterID string, clientID string, url string) (NatsSubscriber, error) {
+func NewSubcriber(clusterID string, clientID string, url string) (*NatsSubscriber, error) {
 	conn, err := stan.Connect(clusterID, clientID, stan.NatsURL(url))
 	if err != nil {
-		return NatsSubscriber{}, fmt.Errorf("nats connect: %w", err)
+		return nil, fmt.Errorf("nats connect: %w", err)
 	}
-	return NatsSubscriber{
-		conn: conn,
-	}, nil
+
+	sub := &NatsSubscriber{
+		conn:  conn,
+		msgCh: make(chan []byte),
+	}
+	return sub, nil
 }
 
-func (s *NatsSubscriber) Subscribe(ctx context.Context, subject string) (<-chan []byte, error) {
-	msgCh := make(chan []byte)
-
+func (s *NatsSubscriber) Subscribe(ctx context.Context, subject string) error {
 	if _, err := s.conn.Subscribe(subject, func(m *stan.Msg) {
-		msgCh <- m.Data
+		s.msgCh <- m.Data
 	}, stan.DurableName("dur"), stan.DeliverAllAvailable()); err != nil {
-		return nil, err
+		return err
 	}
+	return nil
+}
 
-	go func() {
-		<-ctx.Done()
-		close(msgCh)
-	}()
-
-	return msgCh, nil
+func (s *NatsSubscriber) Messages() <-chan []byte {
+	return s.msgCh
 }
 
 func (s *NatsSubscriber) Close() error {

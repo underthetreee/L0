@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/underthetreee/L0/config"
@@ -13,6 +17,7 @@ import (
 	"github.com/underthetreee/L0/internal/service"
 	"github.com/underthetreee/L0/pkg/cache"
 	"github.com/underthetreee/L0/pkg/nats"
+	"github.com/underthetreee/L0/pkg/server"
 )
 
 func main() {
@@ -51,23 +56,46 @@ func run() error {
 	}
 	defer sub.Close()
 
-	msgCh, err := sub.Subscribe(ctx, "orders")
-	if err != nil {
+	if err := sub.Subscribe(ctx, "orders"); err != nil {
 		return err
 	}
 
-	var order model.Order
-	for msg := range msgCh {
-		log.Println("receiving order...")
-		if err := json.Unmarshal(msg, &order); err != nil {
-			log.Println("invalid json:", err)
-			continue
-		}
+	var (
+		quitCh = make(chan os.Signal, 1)
+		errCh  = make(chan error)
+	)
+	signal.Notify(quitCh, syscall.SIGTERM, syscall.SIGINT)
 
-		if err := svc.Store(ctx, order); err != nil {
+	handler := http.NewServeMux()
+	srv := server.NewServer(cfg, handler)
+
+	go func() {
+		if err := srv.Run(); err != nil {
+			errCh <- err
+		}
+	}()
+
+	for {
+		select {
+		case msg := <-sub.Messages():
+			var order model.Order
+
+			log.Println("receiving order...")
+			if err := json.Unmarshal(msg, &order); err != nil {
+				log.Println("invalid json:", err)
+				continue
+			}
+
+			if err := svc.Store(ctx, order); err != nil {
+				return err
+			}
+		case <-quitCh:
+			if err := srv.Shutdown(ctx); err != nil {
+				return err
+			}
+			return nil
+		case err := <-errCh:
 			return err
 		}
-
 	}
-	return nil
 }

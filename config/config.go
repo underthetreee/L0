@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
@@ -9,6 +11,7 @@ type (
 	Config struct {
 		Postgres Postgres
 		Nats     Nats
+		HTTP     HTTP
 	}
 
 	Postgres struct {
@@ -19,13 +22,19 @@ type (
 		Cluster string `env-required:"true" env:"NATS_CLUSTER"`
 		URL     string `env-required:"true" env:"NATS_URL"`
 	}
+
+	HTTP struct {
+		Port         string        `env-required:"true" env:"HTTP_PORT"`
+		ReadTimeout  time.Duration `env-required:"true" env:"HTTP_READ_TIMEOUT"`
+		WriteTimeout time.Duration `env-required:"true" env:"HTTP_WRITE_TIMEOUT"`
+	}
 )
 
-func NewConfig() (Config, error) {
+func NewConfig() (*Config, error) {
 	var cfg Config
 
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
-		return Config{}, fmt.Errorf("config: %w", err)
+		return nil, fmt.Errorf("config: %w", err)
 	}
-	return cfg, nil
+	return &cfg, nil
 }
