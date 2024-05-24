@@ -12,9 +12,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/underthetreee/L0/config"
+	"github.com/underthetreee/L0/internal/handler"
 	"github.com/underthetreee/L0/internal/model"
 	"github.com/underthetreee/L0/internal/repository"
 	"github.com/underthetreee/L0/internal/service"
+
 	"github.com/underthetreee/L0/pkg/cache"
 	"github.com/underthetreee/L0/pkg/nats"
 	"github.com/underthetreee/L0/pkg/server"
@@ -66,8 +68,12 @@ func run() error {
 	)
 	signal.Notify(quitCh, syscall.SIGTERM, syscall.SIGINT)
 
-	handler := http.NewServeMux()
-	srv := server.NewServer(cfg, handler)
+	orderHandler := handler.NewOrderHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/orders/{id}", orderHandler.Get)
+
+	srv := server.NewServer(cfg, mux)
 
 	go func() {
 		if err := srv.Run(); err != nil {

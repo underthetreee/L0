@@ -7,7 +7,7 @@ import (
 	"github.com/underthetreee/L0/internal/model"
 )
 
-type OrderGetter interface {
+type OrdersGetter interface {
 	GetAll(context.Context) ([]model.Order, error)
 }
 
@@ -37,7 +37,7 @@ func (c *Cache) Get(orderID string) (model.Order, bool) {
 	return order, ok
 }
 
-func (c *Cache) LoadDB(ctx context.Context, og OrderGetter) error {
+func (c *Cache) LoadDB(ctx context.Context, og OrdersGetter) error {
 	orders, err := og.GetAll(ctx)
 	if err != nil {
 		return err

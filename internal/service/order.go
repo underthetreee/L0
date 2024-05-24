@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/underthetreee/L0/internal/model"
 )
@@ -34,4 +35,12 @@ func (s *OrderService) Store(ctx context.Context, order model.Order) error {
 
 	s.cache.Set(order.UID, order)
 	return nil
+}
+
+func (s *OrderService) Get(ctx context.Context, orderID string) (model.Order, error) {
+	order, ok := s.cache.Get(orderID)
+	if !ok {
+		return model.Order{}, errors.New("order not found")
+	}
+	return order, nil
 }
