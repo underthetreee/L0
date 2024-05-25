@@ -9,6 +9,11 @@ import (
 	"github.com/underthetreee/L0/internal/model"
 )
 
+const (
+	ErrInternalServer = "internal server error"
+	ErrInvalidInput   = "invalid input"
+)
+
 type OrderGetter interface {
 	Get(context.Context, string) (model.Order, error)
 }
@@ -28,17 +33,25 @@ func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.og.Get(context.Background(), id)
 	if err != nil {
-		http.Error(w, "invalid input", http.StatusBadRequest)
-		log.Printf("invalid id: %s", id)
-		return
-	}
-
-	orderJSON, err := json.Marshal(order)
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		http.Error(w, ErrInvalidInput, http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
+
+	orderBytes, err := json.Marshal(order)
+	if err != nil {
+		http.Error(w, ErrInternalServer, http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(orderJSON)
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(orderBytes)
+	if err != nil {
+		http.Error(w, ErrInternalServer, http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
 }

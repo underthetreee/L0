@@ -24,7 +24,7 @@ type (
 	}
 
 	HTTP struct {
-		Port         string        `env-required:"true" env:"HTTP_PORT"`
+		Addr         string        `env-required:"true" env:"HTTP_ADDR"`
 		ReadTimeout  time.Duration `env-required:"true" env:"HTTP_READ_TIMEOUT"`
 		WriteTimeout time.Duration `env-required:"true" env:"HTTP_WRITE_TIMEOUT"`
 	}
